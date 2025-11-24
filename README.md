@@ -34,122 +34,123 @@ Step 11: Predict for a New Student
 
 ## Program:
 ```
-# 1. Import Required Libraries
-import pandas as pd
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
-# 2. Load the Dataset
-# NOTE: Change the file path if your CSV is in a different location
-data = pd.read_csv("Placement_Data.csv")
+# -----------------------------------------
+# EXPERIMENT 6: Logistic Regression using Gradient Descent (From Scratch)
+# -----------------------------------------
 
-# View first 5 rows
-print("First 5 rows of the dataset:")
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 1. Load the Dataset
+data = pd.read_csv('Placement_Data.csv')
+
+print("Original Data:")
 print(data.head())
 
-# 3. Create a Copy and Drop Unwanted Columns
-data1 = data.copy()
+# 2. Drop Unnecessary Columns
+data = data.drop('sl_no', axis=1)
+data = data.drop('salary', axis=1)
 
-# Dropping 'sl_no' (serial number) and 'salary' (not needed for predicting placement)
-data1 = data1.drop(["sl_no", "salary"], axis=1)
+print("\nAfter dropping 'sl_no' and 'salary':")
+print(data.head())
 
-print("\nData after dropping 'sl_no' and 'salary':")
-print(data1.head())
+# 3. Convert Categorical Columns to 'category' Type
+data["gender"] = data["gender"].astype('category')
+data["ssc_b"] = data["ssc_b"].astype('category')
+data["hsc_b"] = data["hsc_b"].astype('category')
+data["degree_t"] = data["degree_t"].astype('category')
+data["workex"] = data["workex"].astype('category')
+data["specialisation"] = data["specialisation"].astype('category')
+data["status"] = data["status"].astype('category')
+data["hsc_s"] = data["hsc_s"].astype('category')
 
-# 4. Check for Missing and Duplicate Values
-print("\nChecking for missing values (True = missing):")
-print(data1.isnull().any())
+print("\nData types after converting to 'category':")
+print(data.dtypes)
 
-print("\nNumber of duplicate rows:")
-print(data1.duplicated().sum())
+# 4. Convert Categories to Numeric Codes
+data["gender"] = data["gender"].cat.codes
+data["ssc_b"] = data["ssc_b"].cat.codes
+data["hsc_b"] = data["hsc_b"].cat.codes
+data["degree_t"] = data["degree_t"].cat.codes
+data["workex"] = data["workex"].cat.codes
+data["specialisation"] = data["specialisation"].cat.codes
+data["status"] = data["status"].cat.codes
+data["hsc_s"] = data["hsc_s"].cat.codes
 
-# 5. Encode Categorical Variables using LabelEncoder
-# Columns that are categorical (object type)
-cat_cols = ["gender", "ssc_b", "hsc_b", "hsc_s", 
-            "degree_t", "workex", "specialisation", "status"]
+print("\nData after converting categories to numeric codes:")
+print(data.head())
 
-le = LabelEncoder()
+# 5. Separate Features (X) and Target (y)
+x = data.iloc[:, :-1].values   # all columns except last
+y = data.iloc[:, -1].values    # last column (status)
 
-for col in cat_cols:
-    data1[col] = le.fit_transform(data1[col])
+print("\nFeature matrix X shape:", x.shape)
+print("Target vector y shape:", y.shape)
 
-print("\nData after Label Encoding:")
-print(data1.head())
+# 6. Initialize Parameters
+theta = np.random.randn(x.shape[1])  # Random initial weights for each feature
 
+print("\nInitial theta (weights):")
+print(theta)
 
-# 6. Define Features (X) and Target (y)
-# X = all columns except 'status'
-X = data1.iloc[:, :-1]
-# y = 'status' column
-y = data1["status"]
+# 7. Define Sigmoid Function
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
 
-print("\nFeatures (X) sample:")
-print(X.head())
+# 8. Define Loss Function (optional to print/check)
+def loss(theta, X, y):
+    h = sigmoid(X.dot(theta))
+    return -np.sum(y * np.log(h + 1e-10) + (1 - y) * np.log(1 - h + 1e-10))
+    # Added small 1e-10 to avoid log(0)
 
-print("\nTarget (y) sample:")
-print(y.head())
+# 9. Implement Gradient Descent
+def gradient_descent(theta, X, y, alpha, num_iterations):
+    m = len(y)
+    for i in range(num_iterations):
+        h = sigmoid(X.dot(theta))
+        gradient = X.T.dot(h - y) / m
+        theta -= alpha * gradient
 
-# 7. Split the Dataset into Training and Testing Sets
-# test_size=0.2 → 20% test data, 80% training data
-# random_state=0 → same split every time (for reproducibility)
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=0
-)
+        # Optional: print loss every 100 iterations
+        if (i + 1) % 100 == 0:
+            current_loss = loss(theta, X, y)
+            print(f"Iteration {i+1}, Loss: {current_loss:.4f}")
 
-print("\nTraining and testing shapes:")
-print("X_train:", X_train.shape)
-print("X_test:", X_test.shape)
-print("y_train:", y_train.shape)
-print("y_test:", y_test.shape)
-# 8. Create and Train the Logistic Regression Model
-# solver='liblinear' works well for small datasets
-lr = LogisticRegression(solver="liblinear")
+    return theta
 
-# Train the model
-lr.fit(X_train, y_train)
-# 9. Make Predictions on the Test Set
-y_pred = lr.predict(X_test)
+# 10. Train the Model
+theta = gradient_descent(theta, x, y, alpha=0.01, num_iterations=1000)
 
-print("\nPredicted values (y_pred):")
-print(y_pred)
-# 10. Evaluate Model Performance
-# Accuracy: percentage of correctly predicted labels
-accuracy = accuracy_score(y_test, y_pred)
-print("\nModel Accuracy:", accuracy)
+print("\nFinal theta (weights) after training:")
+print(theta)
 
-# Classification Report: precision, recall, F1-score
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred))
+# 11. Define Prediction Function
+def predict(theta, X):
+    h = sigmoid(X.dot(theta))
+    y_pred = np.where(h >= 0.5, 1, 0)
+    return y_pred
 
+# 12. Make Predictions and Compute Accuracy
+y_pred = predict(theta, x)
+accuracy = np.mean(y_pred.flatten() == y)
 
-# 11. Predict Placement for a New Student
-# Order of features must match X columns:
-# ['gender', 'ssc_p', 'ssc_b', 'hsc_p', 'hsc_b', 'hsc_s',
-#  'degree_p', 'degree_t', 'workex', 'etest_p', 'specialisation', 'mba_p']
+print("\nTraining Accuracy:", accuracy)
+print("Predicted labels (first 20):")
+print(y_pred[:20])
 
-# Example student data (after encoding categorical values manually)
-# NOTE: These categorical numeric codes depend on how LabelEncoder encoded them.
-# Here we assume:
-# gender: 1 (e.g., Male)
-# ssc_p: 80
-# ssc_b: 1
-# hsc_p: 90
-# hsc_b: 1
-# hsc_s: 1
-# degree_p: 90
-# degree_t: 1
-# workex: 0 (No work experience)
-# etest_p: 85
-# specialisation: 1
-# mba_p: 85
+# 13. Predict for New Students
+# NOTE: The order of features must match 'x' columns exactly.
+# Example new students (values must match the encoded format used above)
+xnew1 = np.array([[0, 81, 0, 95, 0, 2, 69, 2, 0, 0, 1, 0]])
+xnew2 = np.array([[0, 0, 0, 1, 0, 2, 7, 2, 0, 0, 0, 1]])
 
-new_student = [[1, 80, 1, 90, 1, 1, 90, 1, 0, 85, 1, 85]]
+y_prednew1 = predict(theta, xnew1)
+y_prednew2 = predict(theta, xnew2)
 
-new_prediction = lr.predict(new_student)
+print("\nPrediction for new student 1 (0 = Not Placed, 1 = Placed):", y_prednew1[0])
+print("Prediction for new student 2 (0 = Not Placed, 1 = Placed):", y_prednew2[0])
 
-print("\nPrediction for new student (0 = Not Placed, 1 = Placed):")
-print(new_prediction[0])
 
 /*
 Program to implement the the Logistic Regression Using Gradient Descent.
@@ -159,7 +160,8 @@ RegisterNumber: 25005544
 ```
 
 ## Output:
-<img width="867" height="703" alt="image" src="https://github.com/user-attachments/assets/06fc8c2d-e35f-401a-9e94-74937af4f635" />
+<img width="1042" height="745" alt="image" src="https://github.com/user-attachments/assets/35211ba5-651d-4392-8764-0a76eac8881c" />
+
 
 
 
